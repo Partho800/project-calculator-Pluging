@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Techsoul Project Calculator (TSPC)
  * Description: A premium, highly interactive Service Price Calculator featuring dynamic check lists, custom tier discount calculations, and AJAX lead logging.
- * Version:     1.0.25
+ * Version:     1.0.26
  * Author:      Techsoul
  * Author URI:  https://github.com/Partho800
  * License:     GPL-2.0-or-later
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Constants
-define( 'TSPC_VERSION', '1.0.25' );
+define( 'TSPC_VERSION', '1.0.26' );
 define( 'TSPC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'TSPC_URL', plugin_dir_url( __FILE__ ) );
 

@@ -340,7 +340,7 @@ jQuery(document).ready(function($) {
                         state.selectedServices.push({
                             id: parentId,
                             title: title + ' (All Package Price)',
-                            displayTitle: 'All Package Price',
+                            displayTitle: title + ' (All Package Price)',
                             price: price,
                             isAllPackage: true,
                             packageDiscount: discPercent
@@ -361,14 +361,26 @@ jQuery(document).ready(function($) {
                         });
 
                         var fullTitle = title;
+                        var displayTitle = title;
                         if (subTitles.length > 0) {
                             fullTitle += ' (' + subTitles.join(', ') + ')';
+
+                            // Show 2-3 items and '+X more' for the rest
+                            if (subTitles.length > 3) {
+                                var first3Text = subTitles.slice(0, 3).join(', ');
+                                var showCount = (first3Text.length <= 28) ? 3 : 2;
+                                var visibleList = subTitles.slice(0, showCount).join(', ');
+                                var moreCount = subTitles.length - showCount;
+                                displayTitle += ' (' + visibleList + ' +' + moreCount + ' more)';
+                            } else {
+                                displayTitle = fullTitle;
+                            }
                         }
 
                         state.selectedServices.push({
                             id: parentId,
                             title: fullTitle,
-                            displayTitle: fullTitle,
+                            displayTitle: displayTitle,
                             price: combinedPrice
                         });
                         state.subtotal += combinedPrice;
@@ -466,7 +478,7 @@ jQuery(document).ready(function($) {
         state.selectedServices.forEach(function(item) {
             listHtml += '<li data-id="' + item.id + '">';
             listHtml += '  <div class="tspc-cart-item-info">';
-            listHtml += '    <span class="tspc-cart-item-title" title="' + escapeHtml(item.title) + '">' + escapeHtml(item.title) + '</span>';
+            listHtml += '    <span class="tspc-cart-item-title" title="' + escapeHtml(item.title) + '">' + escapeHtml(item.displayTitle || item.title) + '</span>';
             if (item.isAllPackage && item.packageDiscount > 0) {
                 listHtml += '    <div class="tspc-cart-item-sub-disc">total for discount ' + item.packageDiscount + '%</div>';
             }

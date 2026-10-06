@@ -5,7 +5,7 @@ Tags: cost calculator, price calculator, service calculator, project estimate, q
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.25
+Stable tag: 1.0.26
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,10 @@ Yes, you can configure your currency symbol (e.g. $, €, £, ৳) in the plugin
 4. Lead inquiries management table with detailed client submissions.
 
 == Changelog ==
+
+= 1.0.26 =
+* Optimized selected services summary to display 2-3 items with a '+X more' indicator for cleaner readability.
+* Preserved complete sub-services selection in item hover tooltips and admin lead inquiry records.
 
 = 1.0.25 =
 * Added modern tree hierarchy layout for nested child sub-services with dynamic branch connector lines.
