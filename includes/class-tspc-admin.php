@@ -73,10 +73,10 @@ class TSPC_Admin {
 			return;
 		}
 
-		wp_enqueue_style( 'tspc-admin-css', plugins_url( 'assets/css/admin.css', dirname( __FILE__ ) ), array(), '1.0.0' );
+		wp_enqueue_style( 'tspc-admin-css', plugins_url( 'assets/css/admin.css', dirname( __FILE__ ) ), array(), TSPC_VERSION );
 		// Load WordPress color picker
 		wp_enqueue_style( 'wp-color-picker' );
-		wp_enqueue_script( 'tspc-admin-js', plugins_url( 'assets/js/admin.js', dirname( __FILE__ ) ), array( 'jquery', 'wp-color-picker' ), '1.0.0', true );
+		wp_enqueue_script( 'tspc-admin-js', plugins_url( 'assets/js/admin.js', dirname( __FILE__ ) ), array( 'jquery', 'wp-color-picker' ), TSPC_VERSION, true );
 	}
 
 	/**
@@ -98,19 +98,34 @@ class TSPC_Admin {
 				}
 			}
 
+			$dynamic_discounts_input = isset( $_POST['dynamic_discounts'] ) ? $_POST['dynamic_discounts'] : array();
+			$dynamic_discounts_data = array();
+			if ( is_array( $dynamic_discounts_input ) ) {
+				foreach ( $dynamic_discounts_input as $dd ) {
+					if ( isset( $dd['services'] ) && intval( $dd['services'] ) > 0 ) {
+						$dynamic_discounts_data[] = array(
+							'services' => intval( $dd['services'] ),
+							'discount' => floatval( $dd['discount'] ),
+						);
+					}
+				}
+			}
+
 			$settings = array(
-				'currency'      => sanitize_text_field( $_POST['currency'] ),
-				'discount_2'    => floatval( $_POST['discount_2'] ),
-				'discount_3'    => floatval( $_POST['discount_3'] ),
-				'discount_4'    => floatval( $_POST['discount_4'] ),
-				'admin_email'   => sanitize_email( $_POST['admin_email'] ),
-				'enable_emails' => isset( $_POST['enable_emails'] ) ? 1 : 0,
-				'accent_color'  => $accent_color,
-				'show_name'     => isset( $_POST['show_name'] ) ? 1 : 0,
-				'show_phone'    => isset( $_POST['show_phone'] ) ? 1 : 0,
-				'show_email'    => isset( $_POST['show_email'] ) ? 1 : 0,
-				'show_message'  => isset( $_POST['show_message'] ) ? 1 : 0,
-				'expand_first'  => isset( $_POST['expand_first'] ) ? 1 : 0,
+				'currency'           => sanitize_text_field( $_POST['currency'] ),
+				'dynamic_discounts'  => json_encode( $dynamic_discounts_data ),
+				'admin_email'        => sanitize_email( $_POST['admin_email'] ),
+				'enable_emails'      => isset( $_POST['enable_emails'] ) ? 1 : 0,
+				'accent_color'       => $accent_color,
+				'show_name'          => isset( $_POST['show_name'] ) ? 1 : 0,
+				'show_phone'         => isset( $_POST['show_phone'] ) ? 1 : 0,
+				'show_email'         => isset( $_POST['show_email'] ) ? 1 : 0,
+				'show_message'       => isset( $_POST['show_message'] ) ? 1 : 0,
+				'req_name'           => isset( $_POST['req_name'] ) ? 1 : 0,
+				'req_phone'          => isset( $_POST['req_phone'] ) ? 1 : 0,
+				'req_email'          => isset( $_POST['req_email'] ) ? 1 : 0,
+				'req_message'        => isset( $_POST['req_message'] ) ? 1 : 0,
+				'expand_first'       => isset( $_POST['expand_first'] ) ? 1 : 0,
 			);
 
 			update_option( 'tspc_settings', $settings );
@@ -125,21 +140,40 @@ class TSPC_Admin {
 			if ( is_array( $sub_services_input ) ) {
 				foreach ( $sub_services_input as $sub ) {
 					if ( isset( $sub['title'] ) && ! empty( trim( $sub['title'] ) ) ) {
-						$sub_services_data[] = array(
-							'title' => sanitize_text_field( $sub['title'] ),
-							'price' => floatval( $sub['price'] ),
+						$sub_item = array(
+							'title'           => sanitize_text_field( $sub['title'] ),
+							'price'           => floatval( $sub['price'] ),
+							'default_checked' => isset( $sub['default_checked'] ) ? 1 : 0,
 						);
+						if ( isset( $sub['children'] ) && is_array( $sub['children'] ) ) {
+							$children_data = array();
+							foreach ( $sub['children'] as $child ) {
+								if ( isset( $child['title'] ) && ! empty( trim( $child['title'] ) ) ) {
+									$children_data[] = array(
+										'title'           => sanitize_text_field( $child['title'] ),
+										'price'           => floatval( $child['price'] ),
+										'default_checked' => isset( $child['default_checked'] ) ? 1 : 0,
+									);
+								}
+							}
+							if ( ! empty( $children_data ) ) {
+								$sub_item['children'] = $children_data;
+							}
+						}
+						$sub_services_data[] = $sub_item;
 					}
 				}
 			}
 
 			$service_data = array(
-				'title'        => sanitize_text_field( $_POST['title'] ),
-				'description'  => sanitize_textarea_field( $_POST['description'] ),
-				'icon'         => sanitize_text_field( $_POST['icon'] ),
-				'price'        => floatval( $_POST['price'] ),
-				'status'       => sanitize_text_field( $_POST['status'] ),
-				'sub_services' => json_encode( $sub_services_data ),
+				'title'            => sanitize_text_field( $_POST['title'] ),
+				'description'      => sanitize_textarea_field( $_POST['description'] ),
+				'icon'             => sanitize_text_field( $_POST['icon'] ),
+				'price'            => floatval( $_POST['price'] ),
+				'discount_percent' => isset( $_POST['discount_percent'] ) ? floatval( $_POST['discount_percent'] ) : 0.00,
+				'status'           => sanitize_text_field( $_POST['status'] ),
+				'is_required'      => isset( $_POST['is_required'] ) ? 1 : 0,
+				'sub_services'     => json_encode( $sub_services_data ),
 			);
 
 			TSPC_DB::insert_service( $service_data );
@@ -155,21 +189,40 @@ class TSPC_Admin {
 			if ( is_array( $sub_services_input ) ) {
 				foreach ( $sub_services_input as $sub ) {
 					if ( isset( $sub['title'] ) && ! empty( trim( $sub['title'] ) ) ) {
-						$sub_services_data[] = array(
-							'title' => sanitize_text_field( $sub['title'] ),
-							'price' => floatval( $sub['price'] ),
+						$sub_item = array(
+							'title'           => sanitize_text_field( $sub['title'] ),
+							'price'           => floatval( $sub['price'] ),
+							'default_checked' => isset( $sub['default_checked'] ) ? 1 : 0,
 						);
+						if ( isset( $sub['children'] ) && is_array( $sub['children'] ) ) {
+							$children_data = array();
+							foreach ( $sub['children'] as $child ) {
+								if ( isset( $child['title'] ) && ! empty( trim( $child['title'] ) ) ) {
+									$children_data[] = array(
+										'title'           => sanitize_text_field( $child['title'] ),
+										'price'           => floatval( $child['price'] ),
+										'default_checked' => isset( $child['default_checked'] ) ? 1 : 0,
+									);
+								}
+							}
+							if ( ! empty( $children_data ) ) {
+								$sub_item['children'] = $children_data;
+							}
+						}
+						$sub_services_data[] = $sub_item;
 					}
 				}
 			}
 
 			$service_data = array(
-				'title'        => sanitize_text_field( $_POST['title'] ),
-				'description'  => sanitize_textarea_field( $_POST['description'] ),
-				'icon'         => sanitize_text_field( $_POST['icon'] ),
-				'price'        => floatval( $_POST['price'] ),
-				'status'       => sanitize_text_field( $_POST['status'] ),
-				'sub_services' => json_encode( $sub_services_data ),
+				'title'            => sanitize_text_field( $_POST['title'] ),
+				'description'      => sanitize_textarea_field( $_POST['description'] ),
+				'icon'             => sanitize_text_field( $_POST['icon'] ),
+				'price'            => floatval( $_POST['price'] ),
+				'discount_percent' => isset( $_POST['discount_percent'] ) ? floatval( $_POST['discount_percent'] ) : 0.00,
+				'status'           => sanitize_text_field( $_POST['status'] ),
+				'is_required'      => isset( $_POST['is_required'] ) ? 1 : 0,
+				'sub_services'     => json_encode( $sub_services_data ),
 			);
 
 			TSPC_DB::update_service( $id, $service_data );
@@ -257,19 +310,27 @@ class TSPC_Admin {
 	 * Default settings
 	 */
 	public static function get_default_settings() {
+		$default_discounts = array(
+			array( 'services' => 2, 'discount' => 5.0 ),
+			array( 'services' => 3, 'discount' => 10.0 ),
+			array( 'services' => 4, 'discount' => 15.0 ),
+		);
+
 		return array(
-			'currency'      => '৳',
-			'discount_2'    => 5.0,
-			'discount_3'    => 10.0,
-			'discount_4'    => 15.0,
-			'admin_email'   => get_option( 'admin_email' ),
-			'enable_emails' => 1,
-			'accent_color'  => '#6366f1',
-			'show_name'     => 1,
-			'show_phone'    => 1,
-			'show_email'    => 1,
-			'show_message'  => 1,
-			'expand_first'  => 1,
+			'currency'          => '৳',
+			'dynamic_discounts' => json_encode( $default_discounts ),
+			'admin_email'       => get_option( 'admin_email' ),
+			'enable_emails'     => 1,
+			'accent_color'      => '#6366f1',
+			'show_name'         => 1,
+			'show_phone'        => 1,
+			'show_email'        => 1,
+			'show_message'      => 1,
+			'req_name'          => 1,
+			'req_phone'         => 1,
+			'req_email'         => 1,
+			'req_message'       => 0,
+			'expand_first'      => 1,
 		);
 	}
 
@@ -316,11 +377,6 @@ class TSPC_Admin {
 							<h1><?php esc_html_e( 'Service Price Calculator Dashboard', 'tspc' ); ?></h1>
 							<div class="tspc-tagline"><?php esc_html_e( 'View client inquiries and calculator leads.', 'tspc' ); ?></div>
 						</div>
-					</div>
-					<div class="tspc-shortcode-badge">
-						<span class="dashicons dashicons-embed"></span>
-						<span><?php esc_html_e( 'Embed Shortcode:', 'tspc' ); ?> <code class="tspc-code-btn" onclick="navigator.clipboard.writeText('[tspc_calculator]'); alert('Shortcode copied!');">[tspc_calculator]</code></span>
-					</div>
 				</div>
 			</header>
 
@@ -412,7 +468,9 @@ class TSPC_Admin {
 									<td>
 										<div class="tspc-client-info">
 											<span class="tspc-client-name"><?php echo esc_html( $inq['name'] ); ?></span>
-											<span class="tspc-client-meta"><span class="dashicons dashicons-email"></span> <a href="mailto:<?php echo esc_attr( $inq['email'] ); ?>"><?php echo esc_html( $inq['email'] ); ?></a></span>
+											<?php if ( ! empty( $inq['email'] ) ) : ?>
+												<span class="tspc-client-meta"><span class="dashicons dashicons-email"></span> <a href="mailto:<?php echo esc_attr( $inq['email'] ); ?>"><?php echo esc_html( $inq['email'] ); ?></a></span>
+											<?php endif; ?>
 											<?php if ( ! empty( $inq['phone'] ) ) : ?>
 												<span class="tspc-client-meta"><span class="dashicons dashicons-phone"></span> <a href="tel:<?php echo esc_attr( $inq['phone'] ); ?>"><?php echo esc_html( $inq['phone'] ); ?></a></span>
 											<?php endif; ?>
@@ -539,10 +597,6 @@ class TSPC_Admin {
 					<h1><?php esc_html_e( 'Manage Services', 'tspc' ); ?></h1>
 				</div>
 				<div class="tspc-tagline"><?php esc_html_e( 'Configure active service offerings, price rates, and catalog descriptions.', 'tspc' ); ?></div>
-				<div class="tspc-shortcode-badge">
-					<span class="dashicons dashicons-embed"></span>
-					<span><?php esc_html_e( 'Embed Shortcode:', 'tspc' ); ?> <code class="tspc-code-btn" onclick="navigator.clipboard.writeText('[tspc_calculator]'); alert('Shortcode copied!');">[tspc_calculator]</code></span>
-				</div>
 			</header>
 
 			<?php if ( 'add' === $action || 'edit' === $action ) : ?>
@@ -575,47 +629,58 @@ class TSPC_Admin {
 							<textarea id="description" name="description" rows="3" placeholder="e.g. Responsive Business Website"><?php echo $service ? esc_textarea( $service['description'] ) : ''; ?></textarea>
 						</div>
 
-						<div class="tspc-field-group tspc-icon-picker-group">
-							<label for="icon"><?php esc_html_e( 'Service Icon', 'tspc' ); ?></label>
-							<div class="tspc-icon-picker-wrapper">
-								<div class="tspc-icon-preview-box" id="tspc-icon-preview-box" title="<?php esc_attr_e( 'Click to choose icon', 'tspc' ); ?>">
-									<span class="dashicons <?php echo $service ? esc_attr( $service['icon'] ) : 'dashicons-admin-site'; ?>"></span>
+						<div class="tspc-compact-fields-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-top: 24px;">
+							<div style="display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 20px; align-items: end;">
+								
+								<div class="tspc-field-group tspc-icon-picker-group" style="margin-bottom: 0;">
+									<label for="icon" style="display: block; margin-bottom: 8px; font-weight: 600;"><?php esc_html_e( 'Service Icon', 'tspc' ); ?></label>
+									<div class="tspc-icon-picker-wrapper" style="margin-bottom: 0;">
+										<div class="tspc-icon-preview-box" id="tspc-icon-preview-box" title="<?php esc_attr_e( 'Click to choose icon', 'tspc' ); ?>" style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; cursor: pointer; background: #ffffff; border-color: #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+											<span class="dashicons <?php echo $service ? esc_attr( $service['icon'] ) : 'dashicons-admin-site'; ?>" style="margin:0; display:flex; align-items:center; justify-content:center; font-size:24px; width:24px; height:24px; color: var(--tspc-primary);"></span>
+										</div>
+										<input type="hidden" id="icon" name="icon" value="<?php echo $service ? esc_attr( $service['icon'] ) : 'dashicons-admin-site'; ?>">
+									</div>
+									
+									<!-- Icon Picker Dropdown -->
+									<div class="tspc-icon-picker-dropdown" id="tspc-icon-picker-dropdown" style="display:none; position: absolute; z-index: 100; margin-top: 8px;">
+										<div class="tspc-icon-picker-search-bar">
+											<span class="dashicons dashicons-search"></span>
+											<input type="text" id="tspc-icon-search" placeholder="<?php esc_attr_e( 'Search icon...', 'tspc' ); ?>">
+										</div>
+										<div class="tspc-icon-picker-grid" id="tspc-icon-picker-grid">
+											<!-- Dynamically populated via JS -->
+										</div>
+									</div>
 								</div>
-								<div class="tspc-icon-input-controls">
-									<input type="text" id="icon" name="icon" value="<?php echo $service ? esc_attr( $service['icon'] ) : 'dashicons-admin-site'; ?>" readonly>
-									<button type="button" class="button tspc-icon-picker-toggle-btn" id="tspc-select-icon-btn"><?php esc_html_e( 'Choose Icon', 'tspc' ); ?></button>
+
+								<div class="tspc-field-group" style="margin-bottom: 0;">
+									<label for="price" style="display: block; margin-bottom: 8px; font-weight: 600;"><?php esc_html_e( 'All Package Price *', 'tspc' ); ?></label>
+									<input type="number" step="0.01" id="price" name="price" value="<?php echo $service ? esc_attr( $service['price'] ) : ''; ?>" required placeholder="e.g. 15000" style="background: #ffffff; border-color: #cbd5e1;">
+								</div>
+
+								<div class="tspc-field-group" style="margin-bottom: 0;">
+									<label for="discount_percent" style="display: block; margin-bottom: 8px; font-weight: 600;"><?php esc_html_e( 'Total for discount (%)', 'tspc' ); ?></label>
+									<input type="number" step="0.1" min="0" max="100" id="discount_percent" name="discount_percent" value="<?php echo $service && isset( $service['discount_percent'] ) ? esc_attr( (float) $service['discount_percent'] ) : '0'; ?>" placeholder="e.g. 15" style="background: #ffffff; border-color: #cbd5e1;">
+								</div>
+
+								<div class="tspc-field-group" style="margin-bottom: 0;">
+									<label for="status" style="display: block; margin-bottom: 8px; font-weight: 600;"><?php esc_html_e( 'Status', 'tspc' ); ?></label>
+									<select id="status" name="status" style="background: #ffffff; border-color: #cbd5e1;">
+										<option value="enabled" <?php echo ( $service && 'enabled' === $service['status'] ) ? 'selected' : ''; ?>><?php esc_html_e( 'Enabled', 'tspc' ); ?></option>
+										<option value="disabled" <?php echo ( $service && 'disabled' === $service['status'] ) ? 'selected' : ''; ?>><?php esc_html_e( 'Disabled', 'tspc' ); ?></option>
+									</select>
 								</div>
 							</div>
-							
-							<!-- Icon Picker Dropdown -->
-							<div class="tspc-icon-picker-dropdown" id="tspc-icon-picker-dropdown" style="display:none;">
-								<div class="tspc-icon-picker-search-bar">
-									<span class="dashicons dashicons-search"></span>
-									<input type="text" id="tspc-icon-search" placeholder="<?php esc_attr_e( 'Search icon...', 'tspc' ); ?>">
-								</div>
-								<div class="tspc-icon-picker-grid" id="tspc-icon-picker-grid">
-									<!-- Dynamically populated via JS -->
-								</div>
+
+							<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+
+							<div class="tspc-field-group tspc-checkbox-field" style="margin-bottom: 0;">
+								<label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0;">
+									<input type="checkbox" id="is_required" name="is_required" value="1" <?php checked( $service && isset( $service['is_required'] ) ? $service['is_required'] : 0, 1 ); ?> style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+									<span style="font-weight: 600; color: var(--tspc-dark); font-size: 14px;"><?php esc_html_e( 'Always ON (Required)', 'tspc' ); ?></span>
+									<span style="font-size: 13px; color: var(--tspc-text-muted); font-weight: normal; margin-left: 6px;">&mdash; <?php esc_html_e( 'Clients cannot turn OFF this service on the frontend.', 'tspc' ); ?></span>
+								</label>
 							</div>
-							<p class="description"><?php esc_html_e( 'Choose a visual icon to represent this service card on the frontend.', 'tspc' ); ?></p>
-						</div>
-
-						<div class="tspc-field-group">
-							<label for="price"><?php esc_html_e( 'Price *', 'tspc' ); ?></label>
-							<input type="number" step="0.01" id="price" name="price" value="<?php echo $service ? esc_attr( $service['price'] ) : ''; ?>" required placeholder="e.g. 15000">
-						</div>
-
-						<div class="tspc-field-group">
-							<label for="status"><?php esc_html_e( 'Status', 'tspc' ); ?></label>
-							<select id="status" name="status">
-								<option value="enabled" <?php echo ( $service && 'enabled' === $service['status'] ) ? 'selected' : ''; ?>><?php esc_html_e( 'Enabled / Visible', 'tspc' ); ?></option>
-								<option value="disabled" <?php echo ( $service && 'disabled' === $service['status'] ) ? 'selected' : ''; ?>><?php esc_html_e( 'Disabled / Hidden', 'tspc' ); ?></option>
-							</select>
-						</div>
-
-						<div class="tspc-form-actions-bar" style="margin-top:24px; padding-top:16px; border-top:1px solid var(--tspc-border);">
-							<button type="submit" name="<?php echo 'add' === $action ? 'tspc_add_service' : 'tspc_edit_service'; ?>" class="button button-primary button-large"><?php esc_html_e( 'Save Service', 'tspc' ); ?></button>
-							<a href="admin.php?page=tspc-services" class="button button-secondary button-large" style="margin-left: 10px;"><?php esc_html_e( 'Cancel', 'tspc' ); ?></a>
 						</div>
 					</div>
 
@@ -635,17 +700,46 @@ class TSPC_Admin {
 							if ( $service && ! empty( $service['sub_services'] ) ) {
 								$sub_services = json_decode( $service['sub_services'], true );
 							}
-							if ( ! is_array( $sub_services ) ) {
-								$sub_services = array();
-							}
-							
 							$index = 0;
 							foreach ( $sub_services as $sub ) :
 							?>
-								<div class="tspc-sub-service-row" style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center;">
-									<input type="text" name="sub_services[<?php echo $index; ?>][title]" value="<?php echo esc_attr( $sub['title'] ); ?>" placeholder="<?php esc_attr_e( 'Sub-service Title (e.g. E-commerce System)', 'tspc' ); ?>" style="flex-grow: 2; height: 38px;">
-									<input type="number" name="sub_services[<?php echo $index; ?>][price]" value="<?php echo esc_attr( $sub['price'] ); ?>" placeholder="<?php esc_attr_e( 'Price (e.g. 5000)', 'tspc' ); ?>" style="width: 130px; height: 38px;">
-									<button type="button" class="button tspc-remove-sub-btn" style="color: #ef4444; border-color: #fca5a5; height: 38px; display: inline-flex; align-items: center; justify-content: center; width: 38px;"><span class="dashicons dashicons-trash"></span></button>
+								<div class="tspc-sub-service-group" data-index="<?php echo $index; ?>">
+									<div class="tspc-sub-service-row">
+										<input type="text" name="sub_services[<?php echo $index; ?>][title]" value="<?php echo esc_attr( $sub['title'] ); ?>" placeholder="<?php esc_attr_e( 'Sub-service Title', 'tspc' ); ?>">
+										<input type="number" name="sub_services[<?php echo $index; ?>][price]" value="<?php echo esc_attr( $sub['price'] ); ?>" placeholder="<?php esc_attr_e( 'Price', 'tspc' ); ?>">
+										<label class="tspc-sub-default-label">
+											<input type="checkbox" name="sub_services[<?php echo $index; ?>][default_checked]" value="1" <?php checked( isset( $sub['default_checked'] ) ? $sub['default_checked'] : 0, 1 ); ?>>
+											<?php esc_html_e( 'Default ON', 'tspc' ); ?>
+										</label>
+										<button type="button" class="button tspc-add-child-sub-btn" title="<?php esc_attr_e( 'Add child item under this sub-service', 'tspc' ); ?>">
+											<span class="dashicons dashicons-plus"></span> <?php esc_html_e( 'Add Sub-item', 'tspc' ); ?>
+										</button>
+										<button type="button" class="button tspc-remove-sub-btn" title="<?php esc_attr_e( 'Delete this sub-service', 'tspc' ); ?>"><span class="dashicons dashicons-trash"></span></button>
+									</div>
+									<div class="tspc-sub-children-container">
+										<?php 
+										if ( ! empty( $sub['children'] ) && is_array( $sub['children'] ) ) :
+											$c_idx = 0;
+											foreach ( $sub['children'] as $child ) :
+										?>
+											<div class="tspc-child-sub-row">
+												<span class="tspc-child-arrow-indicator" title="<?php esc_attr_e( 'Child sub-service', 'tspc' ); ?>">
+													<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8a3 3 0 0 0 3 3h10"></path><polyline points="15 10 19 14 15 18"></polyline></svg>
+												</span>
+												<input type="text" name="sub_services[<?php echo $index; ?>][children][<?php echo $c_idx; ?>][title]" value="<?php echo esc_attr( $child['title'] ); ?>" placeholder="<?php esc_attr_e( 'Child item title', 'tspc' ); ?>">
+												<input type="number" name="sub_services[<?php echo $index; ?>][children][<?php echo $c_idx; ?>][price]" value="<?php echo esc_attr( $child['price'] ); ?>" placeholder="<?php esc_attr_e( 'Price', 'tspc' ); ?>">
+												<label class="tspc-sub-default-label">
+													<input type="checkbox" name="sub_services[<?php echo $index; ?>][children][<?php echo $c_idx; ?>][default_checked]" value="1" <?php checked( isset( $child['default_checked'] ) ? $child['default_checked'] : 0, 1 ); ?>>
+													<?php esc_html_e( 'Default ON', 'tspc' ); ?>
+												</label>
+												<button type="button" class="button tspc-remove-child-sub-btn" title="<?php esc_attr_e( 'Delete child option', 'tspc' ); ?>"><span class="dashicons dashicons-trash"></span></button>
+											</div>
+										<?php 
+												$c_idx++;
+											endforeach;
+										endif;
+										?>
+									</div>
 								</div>
 							<?php 
 								$index++;
@@ -653,9 +747,15 @@ class TSPC_Admin {
 							?>
 						</div>
 
-						<button type="button" id="tspc-add-sub-btn" class="button button-secondary" style="margin-top: 15px; display: inline-flex; align-items: center; gap: 6px; height: 38px;">
+						<button type="button" id="tspc-add-sub-btn" class="button button-secondary tspc-add-sub-service-btn">
 							<span class="dashicons dashicons-plus"></span> <?php esc_html_e( 'Add Sub-service', 'tspc' ); ?>
 						</button>
+					</div>
+
+					<!-- Full Width Actions Bar -->
+					<div class="tspc-form-actions-full-width">
+						<button type="submit" name="<?php echo 'add' === $action ? 'tspc_add_service' : 'tspc_edit_service'; ?>" class="button button-primary button-large"><?php esc_html_e( 'Save Service', 'tspc' ); ?></button>
+						<a href="admin.php?page=tspc-services" class="button button-secondary button-large" style="margin-left: 10px;"><?php esc_html_e( 'Cancel', 'tspc' ); ?></a>
 					</div>
 				</form>
 			<?php else : ?>
@@ -677,49 +777,65 @@ class TSPC_Admin {
 						<p class="description"><?php esc_html_e( 'Click "Add New Service" above to build your service catalog list.', 'tspc' ); ?></p>
 					</div>
 				<?php else : ?>
-					<table class="wp-list-table widefat fixed striped table-view-list tspc-leads-table">
-						<thead>
-							<tr>
-								<th style="width: 60px;"><?php esc_html_e( 'Icon', 'tspc' ); ?></th>
-								<th><?php esc_html_e( 'Service Title', 'tspc' ); ?></th>
-								<th><?php esc_html_e( 'Description', 'tspc' ); ?></th>
-								<th><?php esc_html_e( 'Price', 'tspc' ); ?></th>
-								<th><?php esc_html_e( 'Status', 'tspc' ); ?></th>
-								<th class="column-actions"><?php esc_html_e( 'Actions', 'tspc' ); ?></th>
-							</tr>
-						</thead>
-						<tbody>
-							<?php foreach ( $services as $s ) : ?>
+					<div class="tspc-table-card-wrapper">
+						<table class="wp-list-table widefat fixed striped table-view-list tspc-leads-table">
+							<thead>
 								<tr>
-									<td>
-										<span class="dashicons <?php echo esc_attr( $s['icon'] ); ?>" style="font-size:24px; width:24px; height:24px; color:var(--tspc-primary)"></span>
-									</td>
-									<td>
-										<strong><?php echo esc_html( $s['title'] ); ?></strong>
-									</td>
-									<td>
-										<?php echo esc_html( $s['description'] ); ?>
-									</td>
-									<td>
-										<span class="tspc-lead-price">৳<?php echo esc_html( number_format( $s['price'] ) ); ?></span>
-									</td>
-									<td>
-										<span class="tspc-badge <?php echo 'enabled' === $s['status'] ? 'badge-converted' : 'badge-lost'; ?>">
-											<?php echo 'enabled' === $s['status'] ? esc_html__( 'Enabled', 'tspc' ) : esc_html__( 'Disabled', 'tspc' ); ?>
-										</span>
-									</td>
-									<td class="column-actions">
-										<a href="admin.php?page=tspc-services&action=edit&id=<?php echo esc_attr( $s['id'] ); ?>" class="button button-small">
-											<?php esc_html_e( 'Edit', 'tspc' ); ?>
-										</a>
-										<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=tspc-services&action=delete_service&id=' . $s['id'] ), 'tspc_delete_service_' . $s['id'] ) ); ?>" class="button button-small button-link-delete tspc-delete-lead" onclick="return confirm('<?php esc_attr_e( 'Are you sure you want to delete this service?', 'tspc' ); ?>');">
-											<?php esc_html_e( 'Delete', 'tspc' ); ?>
-										</a>
-									</td>
+									<th style="width: 60px;"><?php esc_html_e( 'Icon', 'tspc' ); ?></th>
+									<th><?php esc_html_e( 'Service Title', 'tspc' ); ?></th>
+									<th><?php esc_html_e( 'Description', 'tspc' ); ?></th>
+									<th><?php esc_html_e( 'Price', 'tspc' ); ?></th>
+									<th><?php esc_html_e( 'Status', 'tspc' ); ?></th>
+									<th class="column-actions"><?php esc_html_e( 'Actions', 'tspc' ); ?></th>
 								</tr>
-							<?php endforeach; ?>
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								<?php foreach ( $services as $s ) : ?>
+									<tr>
+										<td>
+											<span class="dashicons <?php echo esc_attr( $s['icon'] ); ?>" style="font-size:24px; width:24px; height:24px; color:var(--tspc-primary)"></span>
+										</td>
+										<td>
+											<strong><?php echo esc_html( $s['title'] ); ?></strong>
+										</td>
+										<td>
+											<?php echo esc_html( $s['description'] ); ?>
+										</td>
+										<td>
+											<span class="tspc-lead-price">৳<?php echo esc_html( number_format( $s['price'] ) ); ?></span>
+											<?php if ( isset( $s['discount_percent'] ) && (float) $s['discount_percent'] > 0 ) : ?>
+												<div style="font-size: 11px; color: #16a34a; font-weight: 600; margin-top: 3px;">
+													<?php printf( esc_html__( '%s%% discount', 'tspc' ), esc_html( (float) $s['discount_percent'] ) ); ?>
+												</div>
+											<?php endif; ?>
+										</td>
+										<td>
+											<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+												<span class="tspc-badge <?php echo 'enabled' === $s['status'] ? 'badge-converted' : 'badge-lost'; ?>">
+													<?php echo 'enabled' === $s['status'] ? esc_html__( 'Enabled', 'tspc' ) : esc_html__( 'Disabled', 'tspc' ); ?>
+												</span>
+												<?php if ( isset( $s['is_required'] ) && $s['is_required'] ) : ?>
+													<span class="tspc-badge badge-new" style="background-color: #f59e0b; color: #fff;">
+														<span class="dashicons dashicons-lock" style="font-size:12px; width:12px; height:12px; margin-right:4px;"></span><?php esc_html_e( 'Always ON', 'tspc' ); ?>
+													</span>
+												<?php endif; ?>
+											</div>
+										</td>
+										<td class="column-actions">
+											<div class="tspc-action-buttons">
+												<a href="admin.php?page=tspc-services&action=edit&id=<?php echo esc_attr( $s['id'] ); ?>" class="button button-small tspc-edit-btn">
+													<span class="dashicons dashicons-edit" style="font-size:14px; width:14px; height:14px;"></span> <?php esc_html_e( 'Edit', 'tspc' ); ?>
+												</a>
+												<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=tspc-services&action=delete_service&id=' . $s['id'] ), 'tspc_delete_service_' . $s['id'] ) ); ?>" class="button button-small button-link-delete tspc-delete-lead" onclick="return confirm('<?php esc_attr_e( 'Are you sure you want to delete this service?', 'tspc' ); ?>');">
+													<span class="dashicons dashicons-trash" style="font-size:14px; width:14px; height:14px;"></span> <?php esc_html_e( 'Delete', 'tspc' ); ?>
+												</a>
+											</div>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+					</div>
 				<?php endif; ?>
 			<?php endif; ?>
 		</div>
@@ -753,46 +869,49 @@ class TSPC_Admin {
 
 				<div class="tspc-settings-grid">
 					
-					<!-- General Section -->
-					<div class="tspc-settings-card">
-						<h3><span class="dashicons dashicons-admin-generic"></span> <?php esc_html_e( 'General Settings', 'tspc' ); ?></h3>
-						<hr>
-						<div class="tspc-field-group">
-							<label for="currency"><?php esc_html_e( 'Currency Display Icon/Symbol', 'tspc' ); ?></label>
-							<input type="text" id="currency" name="currency" value="<?php echo esc_attr( $settings['currency'] ); ?>" class="small-text" required>
-							<p class="description"><?php esc_html_e( 'e.g. ৳, $, €, Tk', 'tspc' ); ?></p>
-						</div>
-						<div class="tspc-field-group">
-							<label for="admin_email"><?php esc_html_e( 'Admin Notification Email recipient', 'tspc' ); ?></label>
-							<input type="email" id="admin_email" name="admin_email" value="<?php echo esc_attr( $settings['admin_email'] ); ?>" class="regular-text" required>
-						</div>
-						<div class="tspc-field-group tspc-checkbox-field">
-							<input type="checkbox" id="enable_emails" name="enable_emails" value="1" <?php checked( $settings['enable_emails'], 1 ); ?>>
-							<label for="enable_emails"><?php esc_html_e( 'Send transactional emails to Admin and Client on submission', 'tspc' ); ?></label>
-						</div>
-						<div class="tspc-field-group tspc-checkbox-field">
-							<input type="checkbox" id="expand_first" name="expand_first" value="1" <?php checked( isset( $settings['expand_first'] ) ? $settings['expand_first'] : 0, 1 ); ?>>
-							<label for="expand_first"><?php esc_html_e( 'Expand first service card by default (unchecked) on page load', 'tspc' ); ?></label>
-						</div>
-					</div>
+					<!-- General Section (Hidden per user request, preserving data via hidden inputs) -->
+					<input type="hidden" name="currency" value="<?php echo esc_attr( $settings['currency'] ); ?>">
+					<input type="hidden" name="admin_email" value="<?php echo esc_attr( $settings['admin_email'] ); ?>">
+					<?php if ( $settings['enable_emails'] ) : ?>
+						<input type="hidden" name="enable_emails" value="1">
+					<?php endif; ?>
+					<?php if ( isset( $settings['expand_first'] ) && $settings['expand_first'] ) : ?>
+						<input type="hidden" name="expand_first" value="1">
+					<?php endif; ?>
+
 
 					<!-- Discount Settings -->
 					<div class="tspc-settings-card">
 						<h3><span class="dashicons dashicons-percent"></span> <?php esc_html_e( 'Discount Tiers Config', 'tspc' ); ?></h3>
 						<p class="description"><?php esc_html_e( 'Define percentages to deduct when multiple services are selected simultaneously.', 'tspc' ); ?></p>
 						<hr>
-						<div class="tspc-field-group">
-							<label for="discount_2"><?php esc_html_e( 'Select 2 Services Discount (%)', 'tspc' ); ?></label>
-							<input type="number" step="0.1" id="discount_2" name="discount_2" value="<?php echo esc_attr( $settings['discount_2'] ); ?>" required>
+						<div id="tspc-dynamic-discounts-list" class="tspc-sub-services-editor-list" style="margin-top: 15px;">
+							<?php 
+							$discounts = array();
+							if ( isset( $settings['dynamic_discounts'] ) && ! empty( $settings['dynamic_discounts'] ) ) {
+								$discounts = json_decode( $settings['dynamic_discounts'], true );
+							}
+							
+							if ( ! is_array( $discounts ) ) {
+								$discounts = array();
+							}
+
+							$index = 0;
+							foreach ( $discounts as $discount_row ) :
+							?>
+								<div class="tspc-discount-row">
+									<input type="number" name="dynamic_discounts[<?php echo $index; ?>][services]" value="<?php echo esc_attr( $discount_row['services'] ); ?>" placeholder="<?php esc_attr_e( 'No. of Services (e.g. 5)', 'tspc' ); ?>" required min="2">
+									<input type="number" step="0.1" name="dynamic_discounts[<?php echo $index; ?>][discount]" value="<?php echo esc_attr( $discount_row['discount'] ); ?>" placeholder="<?php esc_attr_e( 'Discount % (e.g. 15)', 'tspc' ); ?>" required min="0">
+									<button type="button" class="button tspc-remove-discount-btn"><span class="dashicons dashicons-trash"></span></button>
+								</div>
+							<?php 
+								$index++;
+							endforeach; 
+							?>
 						</div>
-						<div class="tspc-field-group">
-							<label for="discount_3"><?php esc_html_e( 'Select 3 Services Discount (%)', 'tspc' ); ?></label>
-							<input type="number" step="0.1" id="discount_3" name="discount_3" value="<?php echo esc_attr( $settings['discount_3'] ); ?>" required>
-						</div>
-						<div class="tspc-field-group">
-							<label for="discount_4"><?php esc_html_e( 'Select 4+ Services Discount (%)', 'tspc' ); ?></label>
-							<input type="number" step="0.1" id="discount_4" name="discount_4" value="<?php echo esc_attr( $settings['discount_4'] ); ?>" required>
-						</div>
+						<button type="button" id="tspc-add-discount-btn" class="button button-secondary tspc-add-sub-service-btn">
+							<span class="dashicons dashicons-plus"></span> <?php esc_html_e( 'Add Discount Tier', 'tspc' ); ?>
+						</button>
 					</div>
 
 					<!-- Inquiry Form Fields Visibility -->
@@ -800,21 +919,51 @@ class TSPC_Admin {
 						<h3><span class="dashicons dashicons-forms"></span> <?php esc_html_e( 'Inquiry Form Fields Visibility', 'tspc' ); ?></h3>
 						<p class="description"><?php esc_html_e( 'Select which contact fields to show or hide on the frontend calculator form.', 'tspc' ); ?></p>
 						<hr>
-						<div class="tspc-field-group tspc-checkbox-field">
-							<input type="checkbox" id="show_name" name="show_name" value="1" <?php checked( $settings['show_name'], 1 ); ?>>
-							<label for="show_name"><strong><?php esc_html_e( 'Show Name Field', 'tspc' ); ?></strong></label>
-						</div>
-						<div class="tspc-field-group tspc-checkbox-field">
-							<input type="checkbox" id="show_phone" name="show_phone" value="1" <?php checked( $settings['show_phone'], 1 ); ?>>
-							<label for="show_phone"><strong><?php esc_html_e( 'Show Phone Field', 'tspc' ); ?></strong></label>
-						</div>
-						<div class="tspc-field-group tspc-checkbox-field">
-							<input type="checkbox" id="show_email" name="show_email" value="1" <?php checked( $settings['show_email'], 1 ); ?>>
-							<label for="show_email"><strong><?php esc_html_e( 'Show Email Field', 'tspc' ); ?></strong></label>
-						</div>
-						<div class="tspc-field-group tspc-checkbox-field">
-							<input type="checkbox" id="show_message" name="show_message" value="1" <?php checked( $settings['show_message'], 1 ); ?>>
-							<label for="show_message"><strong><?php esc_html_e( 'Show Message Field', 'tspc' ); ?></strong></label>
+						<div class="tspc-visibility-settings-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+							
+							<div class="tspc-visibility-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+								<div class="tspc-vr-left" style="display: flex; align-items: center; gap: 12px;">
+									<input type="checkbox" id="show_name" name="show_name" value="1" <?php checked( $settings['show_name'], 1 ); ?> style="margin: 0; width: 18px; height: 18px;">
+									<label for="show_name" style="margin: 0; font-weight: 600; color: #1e293b; cursor: pointer;"><?php esc_html_e( 'Name Field', 'tspc' ); ?></label>
+								</div>
+								<div class="tspc-vr-right" style="display: flex; align-items: center; gap: 8px;">
+									<input type="checkbox" id="req_name" name="req_name" value="1" <?php checked( isset($settings['req_name']) ? $settings['req_name'] : 1, 1 ); ?> style="margin: 0; width: 16px; height: 16px;">
+									<label for="req_name" style="margin: 0; color: #64748b; font-size: 13px; cursor: pointer;"><?php esc_html_e( 'Required', 'tspc' ); ?></label>
+								</div>
+							</div>
+
+							<div class="tspc-visibility-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+								<div class="tspc-vr-left" style="display: flex; align-items: center; gap: 12px;">
+									<input type="checkbox" id="show_phone" name="show_phone" value="1" <?php checked( $settings['show_phone'], 1 ); ?> style="margin: 0; width: 18px; height: 18px;">
+									<label for="show_phone" style="margin: 0; font-weight: 600; color: #1e293b; cursor: pointer;"><?php esc_html_e( 'Phone Field', 'tspc' ); ?></label>
+								</div>
+								<div class="tspc-vr-right" style="display: flex; align-items: center; gap: 8px;">
+									<input type="checkbox" id="req_phone" name="req_phone" value="1" <?php checked( isset($settings['req_phone']) ? $settings['req_phone'] : 1, 1 ); ?> style="margin: 0; width: 16px; height: 16px;">
+									<label for="req_phone" style="margin: 0; color: #64748b; font-size: 13px; cursor: pointer;"><?php esc_html_e( 'Required', 'tspc' ); ?></label>
+								</div>
+							</div>
+
+							<div class="tspc-visibility-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+								<div class="tspc-vr-left" style="display: flex; align-items: center; gap: 12px;">
+									<input type="checkbox" id="show_email" name="show_email" value="1" <?php checked( $settings['show_email'], 1 ); ?> style="margin: 0; width: 18px; height: 18px;">
+									<label for="show_email" style="margin: 0; font-weight: 600; color: #1e293b; cursor: pointer;"><?php esc_html_e( 'Email Field', 'tspc' ); ?></label>
+								</div>
+								<div class="tspc-vr-right" style="display: flex; align-items: center; gap: 8px;">
+									<input type="checkbox" id="req_email" name="req_email" value="1" <?php checked( isset($settings['req_email']) ? $settings['req_email'] : 1, 1 ); ?> style="margin: 0; width: 16px; height: 16px;">
+									<label for="req_email" style="margin: 0; color: #64748b; font-size: 13px; cursor: pointer;"><?php esc_html_e( 'Required', 'tspc' ); ?></label>
+								</div>
+							</div>
+
+							<div class="tspc-visibility-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+								<div class="tspc-vr-left" style="display: flex; align-items: center; gap: 12px;">
+									<input type="checkbox" id="show_message" name="show_message" value="1" <?php checked( $settings['show_message'], 1 ); ?> style="margin: 0; width: 18px; height: 18px;">
+									<label for="show_message" style="margin: 0; font-weight: 600; color: #1e293b; cursor: pointer;"><?php esc_html_e( 'Message Field', 'tspc' ); ?></label>
+								</div>
+								<div class="tspc-vr-right" style="display: flex; align-items: center; gap: 8px;">
+									<input type="checkbox" id="req_message" name="req_message" value="1" <?php checked( isset($settings['req_message']) ? $settings['req_message'] : 0, 1 ); ?> style="margin: 0; width: 16px; height: 16px;">
+									<label for="req_message" style="margin: 0; color: #64748b; font-size: 13px; cursor: pointer;"><?php esc_html_e( 'Required', 'tspc' ); ?></label>
+								</div>
+							</div>
 						</div>
 					</div>
 
@@ -823,23 +972,28 @@ class TSPC_Admin {
 						<h3><span class="dashicons dashicons-art"></span> <?php esc_html_e( 'Brand / Accent Color', 'tspc' ); ?></h3>
 						<p class="description"><?php esc_html_e( 'This color applies to selected service cards, icon backgrounds, price highlights, the submit button, and other accent elements in the calculator.', 'tspc' ); ?></p>
 						<hr>
-						<div class="tspc-field-group">
-							<label for="accent_color"><?php esc_html_e( 'Primary Accent Color', 'tspc' ); ?></label>
-							<input type="text" id="accent_color" name="accent_color"
-								value="<?php echo esc_attr( isset( $settings['accent_color'] ) ? $settings['accent_color'] : '#6366f1' ); ?>"
-								class="tspc-color-picker"
-								data-default-color="#6366f1"
-							>
-							<p class="description"><?php esc_html_e( 'Click the color swatch to open the picker. Default: Indigo (#6366f1).', 'tspc' ); ?></p>
-						</div>
-						<div class="tspc-color-preview-bar">
-							<div class="tspc-preview-chip" id="tspc-preview-chip" style="background: <?php echo esc_attr( isset( $settings['accent_color'] ) ? $settings['accent_color'] : '#6366f1' ); ?>;">
-								<span class="dashicons dashicons-yes"></span>
+						<div class="tspc-color-settings-wrapper" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; margin-top: 20px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+							
+							<div class="tspc-color-picker-sec" style="flex: 1; min-width: 250px;">
+								<label for="accent_color" style="display: block; margin-bottom: 12px; font-weight: 600; color: #1e293b;"><?php esc_html_e( 'Primary Accent Color', 'tspc' ); ?></label>
+								<input type="text" id="accent_color" name="accent_color"
+									value="<?php echo esc_attr( isset( $settings['accent_color'] ) ? $settings['accent_color'] : '#6366f1' ); ?>"
+									class="tspc-color-picker"
+									data-default-color="#6366f1"
+								>
+								<p class="description" style="margin-top: 12px;"><?php esc_html_e( 'Click the color swatch to open the picker. Default: Indigo (#6366f1).', 'tspc' ); ?></p>
 							</div>
-							<div class="tspc-preview-labels">
-								<span class="tspc-preview-label-item"><?php esc_html_e( 'Selected card border & icon', 'tspc' ); ?></span>
-								<span class="tspc-preview-label-item"><?php esc_html_e( 'Price highlight & total', 'tspc' ); ?></span>
-								<span class="tspc-preview-label-item"><?php esc_html_e( 'Submit button background', 'tspc' ); ?></span>
+
+							<div class="tspc-color-preview-bar" style="margin: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; width: 220px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+								<div style="font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;"><?php esc_html_e( 'Live Preview', 'tspc' ); ?></div>
+								<div class="tspc-preview-chip" id="tspc-preview-chip" style="background: <?php echo esc_attr( isset( $settings['accent_color'] ) ? $settings['accent_color'] : '#6366f1' ); ?>; margin-bottom: 15px;">
+									<span class="dashicons dashicons-yes"></span>
+								</div>
+								<div class="tspc-preview-labels">
+									<span class="tspc-preview-label-item"><?php esc_html_e( 'Selected card border & icon', 'tspc' ); ?></span>
+									<span class="tspc-preview-label-item"><?php esc_html_e( 'Price highlight & total', 'tspc' ); ?></span>
+									<span class="tspc-preview-label-item"><?php esc_html_e( 'Submit button background', 'tspc' ); ?></span>
+								</div>
 							</div>
 						</div>
 					</div>

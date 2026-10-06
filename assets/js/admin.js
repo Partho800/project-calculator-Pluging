@@ -49,38 +49,41 @@ jQuery(document).ready(function($) {
         var formattedDate = date.toLocaleString();
 
         // Build HTML
-        var html = '<div class="tspc-modal-grid">';
+        var html = '<div class="tspc-modal-header-meta"><span><i class="dashicons dashicons-calendar-alt"></i> Submitted: ' + formattedDate + '</span></div>';
+
+        html += '<div class="tspc-modal-body-content">';
         
-        html += '<div class="tspc-modal-label">Submission Date</div>';
-        html += '<div class="tspc-modal-val">' + formattedDate + '</div>';
-
-        html += '<div class="tspc-modal-label">Client Name</div>';
-        html += '<div class="tspc-modal-val"><strong>' + escapeHtml(inquiryData.name) + '</strong></div>';
-
-        html += '<div class="tspc-modal-label">Email Address</div>';
-        html += '<div class="tspc-modal-val"><a href="mailto:' + inquiryData.email + '">' + escapeHtml(inquiryData.email) + '</a></div>';
-
-        html += '<div class="tspc-modal-label">Phone Number</div>';
-        if (inquiryData.phone && inquiryData.phone !== '') {
-            html += '<div class="tspc-modal-val"><a href="tel:' + escapeHtml(inquiryData.phone) + '" style="display:inline-flex;align-items:center;gap:5px;"><span class="dashicons dashicons-phone" style="font-size:14px;width:14px;height:14px;"></span>' + escapeHtml(inquiryData.phone) + '</a></div>';
-        } else {
-            html += '<div class="tspc-modal-val" style="color:#94a3b8;">— Not provided —</div>';
+        // Client Card
+        html += '<div class="tspc-modal-card">';
+        html += '<h3>Client Information</h3>';
+        html += '<div class="tspc-modal-card-row"><span>Name:</span> <strong>' + escapeHtml(inquiryData.name) + '</strong></div>';
+        if (inquiryData.email && inquiryData.email !== '') {
+            html += '<div class="tspc-modal-card-row"><span>Email:</span> <a href="mailto:' + inquiryData.email + '">' + escapeHtml(inquiryData.email) + '</a></div>';
         }
+        if (inquiryData.phone && inquiryData.phone !== '') {
+            html += '<div class="tspc-modal-card-row"><span>Phone:</span> <a href="tel:' + escapeHtml(inquiryData.phone) + '">' + escapeHtml(inquiryData.phone) + '</a></div>';
+        }
+        html += '</div>';
 
-        html += '<div class="tspc-modal-label">Selected Services</div>';
-        html += '<div class="tspc-modal-val">' + servicesHtml + '</div>';
+        // Services Card
+        html += '<div class="tspc-modal-card">';
+        html += '<h3>Selected Services</h3>';
+        html += '<div class="tspc-modal-services-list">' + servicesHtml + '</div>';
+        html += '</div>';
 
-        html += '<div class="tspc-modal-label">Subtotal</div>';
-        html += '<div class="tspc-modal-val">৳' + parseFloat(inquiryData.subtotal).toLocaleString() + '</div>';
+        // Pricing Card
+        html += '<div class="tspc-modal-card tspc-pricing-card">';
+        html += '<div class="tspc-modal-card-row"><span>Subtotal:</span> <strong>৳' + parseFloat(inquiryData.subtotal).toLocaleString() + '</strong></div>';
+        html += '<div class="tspc-modal-card-row"><span>Discount:</span> <strong>-৳' + parseFloat(inquiryData.discount).toLocaleString() + '</strong></div>';
+        html += '<div class="tspc-modal-card-row tspc-total-row"><span>Total Price:</span> <strong>৳' + parseFloat(inquiryData.total).toLocaleString() + '</strong></div>';
+        html += '</div>';
 
-        html += '<div class="tspc-modal-label">Discount Saved</div>';
-        html += '<div class="tspc-modal-val">-৳' + parseFloat(inquiryData.discount).toLocaleString() + '</div>';
-
-        html += '<div class="tspc-modal-label">Total Price</div>';
-        html += '<div class="tspc-modal-val"><span class="tspc-lead-price">৳' + parseFloat(inquiryData.total).toLocaleString() + '</span></div>';
-
-        html += '<div class="tspc-modal-label">Message / Notes</div>';
-        html += '<div class="tspc-modal-val"><pre>' + escapeHtml(inquiryData.message || 'No additional comments.') + '</pre></div>';
+        if (inquiryData.message && inquiryData.message !== '') {
+            html += '<div class="tspc-modal-card tspc-msg-card">';
+            html += '<h3>Message / Notes</h3>';
+            html += '<pre>' + escapeHtml(inquiryData.message) + '</pre>';
+            html += '</div>';
+        }
 
         html += '</div>';
 
@@ -208,22 +211,91 @@ jQuery(document).ready(function($) {
     var $subContainer = $('#tspc-sub-services-container');
     var $addSubBtn = $('#tspc-add-sub-btn');
     if ($subContainer.length && $addSubBtn.length) {
-        var subIndex = $subContainer.find('.tspc-sub-service-row').length;
+        var subIndex = $subContainer.find('.tspc-sub-service-group').length || $subContainer.find('.tspc-sub-service-row').length;
 
+        // Add parent sub-service
         $addSubBtn.on('click', function(e) {
             e.preventDefault();
-            var html = '<div class="tspc-sub-service-row" style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">' +
-                       '  <input type="text" name="sub_services[' + subIndex + '][title]" placeholder="Sub-service Title (e.g. E-commerce System)" style="flex-grow: 2;">' +
-                       '  <input type="number" name="sub_services[' + subIndex + '][price]" placeholder="Extra Price (e.g. 5000)" style="width: 150px;">' +
-                       '  <button type="button" class="button tspc-remove-sub-btn" style="color: #ef4444; border-color: #fca5a5;"><span class="dashicons dashicons-trash" style="margin-top: 4px;"></span></button>' +
+            var html = '<div class="tspc-sub-service-group" data-index="' + subIndex + '">' +
+                       '  <div class="tspc-sub-service-row">' +
+                       '    <input type="text" name="sub_services[' + subIndex + '][title]" placeholder="Sub-service Title">' +
+                       '    <input type="number" name="sub_services[' + subIndex + '][price]" placeholder="Price">' +
+                       '    <label class="tspc-sub-default-label">' +
+                       '      <input type="checkbox" name="sub_services[' + subIndex + '][default_checked]" value="1">' +
+                       '      Default ON' +
+                       '    </label>' +
+                       '    <button type="button" class="button tspc-add-child-sub-btn" title="Add child item under this sub-service">' +
+                       '      <span class="dashicons dashicons-plus"></span> Add Sub-item' +
+                       '    </button>' +
+                       '    <button type="button" class="button tspc-remove-sub-btn" title="Delete this sub-service"><span class="dashicons dashicons-trash"></span></button>' +
+                       '  </div>' +
+                       '  <div class="tspc-sub-children-container"></div>' +
                        '</div>';
             $subContainer.append(html);
             subIndex++;
         });
 
+        // Add child sub-service
+        $subContainer.on('click', '.tspc-add-child-sub-btn', function(e) {
+            e.preventDefault();
+            var $group = $(this).closest('.tspc-sub-service-group');
+            var parentIndex = $group.attr('data-index');
+            var $childrenContainer = $group.find('.tspc-sub-children-container');
+            var childIndex = $childrenContainer.find('.tspc-child-sub-row').length;
+
+            var arrowSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8a3 3 0 0 0 3 3h10"></path><polyline points="15 10 19 14 15 18"></polyline></svg>';
+
+            var childHtml = '<div class="tspc-child-sub-row">' +
+                            '  <span class="tspc-child-arrow-indicator" title="Child sub-service">' + arrowSvg + '</span>' +
+                            '  <input type="text" name="sub_services[' + parentIndex + '][children][' + childIndex + '][title]" placeholder="Child item title">' +
+                            '  <input type="number" name="sub_services[' + parentIndex + '][children][' + childIndex + '][price]" placeholder="Price">' +
+                            '  <label class="tspc-sub-default-label">' +
+                            '    <input type="checkbox" name="sub_services[' + parentIndex + '][children][' + childIndex + '][default_checked]" value="1">' +
+                            '    Default ON' +
+                            '  </label>' +
+                            '  <button type="button" class="button tspc-remove-child-sub-btn" title="Delete child option"><span class="dashicons dashicons-trash"></span></button>' +
+                            '</div>';
+            $childrenContainer.append(childHtml);
+        });
+
+        // Remove child sub-service
+        $subContainer.on('click', '.tspc-remove-child-sub-btn', function(e) {
+            e.preventDefault();
+            $(this).closest('.tspc-child-sub-row').remove();
+        });
+
+        // Remove parent sub-service
         $subContainer.on('click', '.tspc-remove-sub-btn', function(e) {
             e.preventDefault();
-            $(this).closest('.tspc-sub-service-row').remove();
+            var $group = $(this).closest('.tspc-sub-service-group');
+            if ($group.length) {
+                $group.remove();
+            } else {
+                $(this).closest('.tspc-sub-service-row').remove();
+            }
+        });
+    }
+
+    // ── Dynamic Discounts rows in settings ─────────────────────────────
+    var $discountContainer = $('#tspc-dynamic-discounts-list');
+    var $addDiscountBtn = $('#tspc-add-discount-btn');
+    if ($discountContainer.length && $addDiscountBtn.length) {
+        var discountIndex = $discountContainer.find('.tspc-discount-row').length;
+
+        $addDiscountBtn.on('click', function(e) {
+            e.preventDefault();
+            var html = '<div class="tspc-discount-row">' +
+                       '  <input type="number" name="dynamic_discounts[' + discountIndex + '][services]" placeholder="No. of Services (e.g. 5)" required min="2">' +
+                       '  <input type="number" step="0.1" name="dynamic_discounts[' + discountIndex + '][discount]" placeholder="Discount % (e.g. 15)" required min="0">' +
+                       '  <button type="button" class="button tspc-remove-discount-btn"><span class="dashicons dashicons-trash"></span></button>' +
+                       '</div>';
+            $discountContainer.append(html);
+            discountIndex++;
+        });
+
+        $discountContainer.on('click', '.tspc-remove-discount-btn', function(e) {
+            e.preventDefault();
+            $(this).closest('.tspc-discount-row').remove();
         });
     }
 });

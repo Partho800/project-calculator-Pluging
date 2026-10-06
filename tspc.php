@@ -2,8 +2,11 @@
 /**
  * Plugin Name: Techsoul Project Calculator (TSPC)
  * Description: A premium, highly interactive Service Price Calculator featuring dynamic check lists, custom tier discount calculations, and AJAX lead logging.
- * Version:     1.0.0
+ * Version:     1.0.25
  * Author:      Techsoul
+ * Author URI:  https://github.com/Partho800
+ * License:     GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: tspc
  * Domain Path: /languages
  *
@@ -15,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Constants
-define( 'TSPC_VERSION', '1.0.2' );
+define( 'TSPC_VERSION', '1.0.25' );
 define( 'TSPC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'TSPC_URL', plugin_dir_url( __FILE__ ) );
 
@@ -93,8 +96,27 @@ function tspc_handle_lead_submission() {
 	}
 	$services_json = wp_json_encode( $sanitized_services );
 
-	if ( empty( $name ) || empty( $email ) ) {
-		wp_send_json_error( array( 'message' => esc_html__( 'Name and email are required.', 'tspc' ) ) );
+	$settings = get_option( 'tspc_settings', array() );
+	
+	$req_name = isset( $settings['req_name'] ) ? (int) $settings['req_name'] : 1;
+	$req_email = isset( $settings['req_email'] ) ? (int) $settings['req_email'] : 1;
+	$req_phone = isset( $settings['req_phone'] ) ? (int) $settings['req_phone'] : 1;
+	$req_message = isset( $settings['req_message'] ) ? (int) $settings['req_message'] : 0;
+
+	if ( $req_name && empty( $name ) ) {
+		wp_send_json_error( array( 'message' => esc_html__( 'Name is required.', 'tspc' ) ) );
+		exit;
+	}
+	if ( $req_email && empty( $email ) ) {
+		wp_send_json_error( array( 'message' => esc_html__( 'Email is required.', 'tspc' ) ) );
+		exit;
+	}
+	if ( $req_phone && empty( $phone ) ) {
+		wp_send_json_error( array( 'message' => esc_html__( 'Phone number is required.', 'tspc' ) ) );
+		exit;
+	}
+	if ( $req_message && empty( $message ) ) {
+		wp_send_json_error( array( 'message' => esc_html__( 'Message is required.', 'tspc' ) ) );
 		exit;
 	}
 
@@ -103,8 +125,6 @@ function tspc_handle_lead_submission() {
 		exit;
 	}
 
-	// Get settings for email notifications
-	$settings = get_option( 'tspc_settings', array() );
 	$currency = isset( $settings['currency'] ) ? $settings['currency'] : '৳';
 
 	// Save to DB

@@ -44,12 +44,14 @@ class TSPC_DB {
 		$sql_services = "CREATE TABLE $services_table (
 			id bigint(20) NOT NULL AUTO_INCREMENT,
 			title varchar(255) NOT NULL,
-			description text DEFAULT '',
+			description text,
 			icon varchar(100) DEFAULT 'dashicons-admin-site',
 			price decimal(10,2) NOT NULL DEFAULT 0.00,
+			discount_percent decimal(5,2) NOT NULL DEFAULT 0.00,
 			status varchar(20) NOT NULL DEFAULT 'enabled',
-			sub_services text DEFAULT '',
-			created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+			is_required tinyint(1) NOT NULL DEFAULT 0,
+			sub_services text,
+			created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			PRIMARY KEY  (id)
 		) $charset_collate;";
 
@@ -63,9 +65,9 @@ class TSPC_DB {
 			subtotal decimal(10,2) NOT NULL DEFAULT 0.00,
 			discount decimal(10,2) NOT NULL DEFAULT 0.00,
 			total decimal(10,2) NOT NULL DEFAULT 0.00,
-			message text DEFAULT '',
+			message text,
 			status varchar(20) NOT NULL DEFAULT 'new',
-			created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+			created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			PRIMARY KEY  (id)
 		) $charset_collate;";
 
@@ -80,16 +82,14 @@ class TSPC_DB {
 	public static function insert_service( $data ) {
 		global $wpdb;
 		$table = self::get_services_table();
-		$format = array( '%s', '%s', '%s', '%f', '%s', '%s' );
-		$inserted = $wpdb->insert( $table, $data, $format );
+		$inserted = $wpdb->insert( $table, $data );
 		return $inserted ? $wpdb->insert_id : false;
 	}
 
 	public static function update_service( $id, $data ) {
 		global $wpdb;
 		$table = self::get_services_table();
-		$format = array( '%s', '%s', '%s', '%f', '%s', '%s' );
-		return $wpdb->update( $table, $data, array( 'id' => $id ), $format, array( '%d' ) ) !== false;
+		return $wpdb->update( $table, $data, array( 'id' => $id ) ) !== false;
 	}
 
 	public static function delete_service( $id ) {
@@ -173,4 +173,32 @@ class TSPC_DB {
 			array( '%d' )
 		) !== false;
 	}
+
+	/**
+	 * Check and add is_required and discount_percent columns if not present
+	 */
+	public static function check_and_update_db() {
+		global $wpdb;
+		$services_table = self::get_services_table();
+		$row = $wpdb->get_results( $wpdb->prepare(
+			"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+			DB_NAME,
+			$services_table,
+			'is_required'
+		) );
+		if ( empty( $row ) ) {
+			$wpdb->query( "ALTER TABLE $services_table ADD COLUMN is_required tinyint(1) NOT NULL DEFAULT 0 AFTER status" );
+		}
+
+		$row_disc = $wpdb->get_results( $wpdb->prepare(
+			"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+			DB_NAME,
+			$services_table,
+			'discount_percent'
+		) );
+		if ( empty( $row_disc ) ) {
+			$wpdb->query( "ALTER TABLE $services_table ADD COLUMN discount_percent decimal(5,2) NOT NULL DEFAULT 0.00 AFTER price" );
+		}
+	}
 }
+add_action( 'plugins_loaded', array( 'TSPC_DB', 'check_and_update_db' ) );
